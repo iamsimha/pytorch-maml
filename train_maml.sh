@@ -1,0 +1,16 @@
+python run_maml.py \
+    --data-folder ../HW2/omniglot_resized/ \
+    --num-classes 5 \
+    --num-meta-test-classes 5 \
+    --num-samples-per-class 1 \
+    --num-meta-test-samples-per-class 1 \
+    --batch-size 32 \
+    --inner-update-lr 0.4 \
+    --meta-lr 0.001 \
+    --num-meta-train-iterations 2000 \
+    --num-meta-test-iterations 50 \
+    --num-meta-validation-iterations 4 \
+    --num-inner-updates 1 \
+    --meta-test-num-inner-updates 1 \
+    --dim-hidden 16 \
+    --validation-frequency 100
