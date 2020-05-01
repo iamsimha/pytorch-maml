@@ -1,6 +1,7 @@
 import torch.nn as nn
 import numpy as np
 import torch
+import os
 from torch.utils.data import DataLoader
 from data.omniglot_dataset import Datagenerator
 from inner_update import apply_inner_update, get_task_outer_loss
@@ -10,7 +11,7 @@ from collections import OrderedDict
 from torchvision.utils import make_grid
 from tqdm import tqdm
 import itertools
-
+import matplotlib.pyplot as plt
 
 class MAML:
     def __init__(self, hparams, model):
@@ -53,7 +54,7 @@ class MAML:
     def train_step(self):
         self.model.train()
         batch = next(iter(self._train_data_loader))
-        mean_outer_loss = torch.tensor(0.0, device="cuda")
+        mean_outer_loss = torch.tensor(0.0, device=self.device)
         accuracy = []
         for task_num in range(self.batch_size):
             self.train_batch_num += 1
@@ -62,6 +63,7 @@ class MAML:
             task_outer_inputs = batch["outer_inputs"][task_num]
             task_outer_labels = batch["outer_labels"][task_num]
             # Perform inner gradient descent for "num_inner_updates" steps
+
             writer.add_image(
                 "train/inner", make_grid(task_inner_inputs), self.train_batch_num,
             )
@@ -79,12 +81,15 @@ class MAML:
                 self.num_train_inner_updates,
                 "train",
             )
+
             mean_outer_loss += outer_loss
             accuracy.append(outer_accuracy)
         mean_outer_loss.div_(self.batch_size)
+
         self.optimizer.zero_grad()
         mean_outer_loss.backward()
         self.optimizer.step()
+
         mean_accuracy = np.mean(accuracy)
         writer.add_scalar(
             "train/mean_outer_loss", mean_outer_loss, self.train_batch_num
@@ -96,10 +101,10 @@ class MAML:
 
     def train(self):
         self.train_batch_num = 0
-        self.test_batch_num = 0
-        self.validation_batch_num = 0
         with tqdm(total=self.train_iterations) as pbar:
             for itr in range(self.train_iterations):
+                self.episode = itr
+
                 mean_outer_train_loss, mean_outer_train_accuracy = self.train_step()
                 pbar.update(1)
                 postfix = {
@@ -111,43 +116,34 @@ class MAML:
                 if itr % self.validation_frequency == 0:
                     self.validate()
 
-    def build_evaluation_fn(self, num_iterations, data_loader, batch_size, prefix):
-        batch_num = 0
 
+    def build_evaluation_fn(self, num_iterations, data_loader, batch_size, prefix):
         def eval_fn():
-            nonlocal batch_num
             accuracies = []
-            for i in range(num_iterations):
+            for itr in range(num_iterations):
                 mean_outer_loss, batch_accuracies = self.evaluate(
-                    data_loader, batch_num, prefix
+                    data_loader, prefix
                 )
                 accuracies.append(batch_accuracies)
-                batch_num += batch_size
             accuracies = list(itertools.chain.from_iterable(accuracies))
             print(f"{prefix} Accuracy: {np.mean(accuracies)}")
-
+            logfile_name = open(os.path.join("logs", f"{prefix}.csv"), "a")
+            logfile_name.write(f"{self.episode},{np.mean(accuracies)}\n")
         return eval_fn
 
-    def evaluate(self, data_iterator, iteration_number, prefix=""):
+    def evaluate(self, data_iterator, prefix=""):
         self.model.eval()
-        mean_outer_loss = torch.tensor(0.0, device="cuda")
+        mean_outer_loss = torch.tensor(0.0, device=self.device)
         batch = next(iter(data_iterator))
         accuracies = []
         for task_num in range(self.batch_size):
-            iteration_number += 1
             task_inner_inputs = batch["inner_inputs"][task_num]
             task_inner_labels = batch["inner_labels"][task_num]
             task_outer_inputs = batch["outer_inputs"][task_num]
             task_outer_labels = batch["outer_labels"][task_num]
-            writer.add_image(
-                f"{prefix}/inner", make_grid(task_inner_inputs), iteration_number,
-            )
-            writer.add_image(
-                f"{prefix}/outer", make_grid(task_outer_inputs), iteration_number,
-            )
             outer_loss, outer_accuracy = get_task_outer_loss(
                 self.model,
-                self.loss_fn,
+                nn.CrossEntropyLoss(),
                 task_inner_inputs,
                 task_inner_labels,
                 task_outer_inputs,
@@ -160,12 +156,6 @@ class MAML:
             accuracies.append(outer_accuracy)
         mean_outer_loss.div_(self.batch_size)
         mean_accuracy = np.mean(accuracies)
-        writer.add_scalar(
-            f"{prefix}/mean_outer_loss", mean_outer_loss, iteration_number
-        )
-        writer.add_scalar(
-            f"{prefix}/mean_outer_accuracy", mean_accuracy, iteration_number
-        )
         return mean_outer_loss, accuracies
 
     def train_data_loader(self):
@@ -180,7 +170,6 @@ class MAML:
             train_data_generator,
             batch_size=self.batch_size,
             collate_fn=make_collate_fn(self.device),
-            shuffle=True,
         )
 
     def test_data_loader(self):
@@ -195,7 +184,6 @@ class MAML:
             test_data_generator,
             batch_size=self.batch_size,
             collate_fn=make_collate_fn(self.device),
-            shuffle=True,
         )
 
     def validation_data_loader(self):
@@ -210,6 +198,4 @@ class MAML:
             val_data_generator,
             batch_size=self.batch_size,
             collate_fn=make_collate_fn(self.device),
-            shuffle=True,
         )
-

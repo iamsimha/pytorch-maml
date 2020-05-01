@@ -8,9 +8,10 @@ python run_maml.py \
     --inner-update-lr 0.4 \
     --meta-lr 0.001 \
     --num-meta-train-iterations 2000 \
-    --num-meta-test-iterations 50 \
+    --num-meta-test-iterations 200 \
     --num-meta-validation-iterations 4 \
     --num-inner-updates 1 \
     --meta-test-num-inner-updates 1 \
     --dim-hidden 16 \
-    --validation-frequency 100
+    --validation-frequency 100 \
+    --device cpu

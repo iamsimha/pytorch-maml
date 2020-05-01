@@ -1,6 +1,6 @@
 import numpy as np
 import os
-import random
+from random import Random
 import glob
 import sys
 import imageio
@@ -13,7 +13,7 @@ This code is inspired from
 HW2 of https://cs330.stanford.edu/
 """
 
-def get_images(paths, labels, nb_samples=None, shuffle=True):
+def get_images(paths, labels, random, nb_samples=None, shuffle=True):
     """
     Takes a set of character folders and labels and returns paths to image files
     paired with labels.
@@ -70,17 +70,17 @@ class Datagenerator(Dataset):
         self.num_samples_per_class = 2 * num_samples_per_class
         self.dim_input = np.prod(img_size)
         self.dim_output = self.num_classes
-
-        character_folders = [
+        self.dataset_type = dataset_type
+        self.random = Random(1)
+        character_folders = sorted([
             os.path.join(data_folder, family, character)
             for family in os.listdir(data_folder)
             if os.path.isdir(os.path.join(data_folder, family))
             for character in os.listdir(os.path.join(data_folder, family))
             if os.path.isdir(os.path.join(data_folder, family, character))
-        ]
-        random.seed(1)
+        ])
         np.random.seed(111)
-        random.shuffle(character_folders)
+        self.random.shuffle(character_folders)
         num_val = 100
         num_train = 1100
         if dataset_type == "train":
@@ -94,12 +94,13 @@ class Datagenerator(Dataset):
         self.image_cache = self.load_images(self.character_folders, self.dim_input)
 
     def __getitem__(self, index):
-        sampled_character_folders = random.sample(
+        sampled_character_folders = self.random.sample(
             self.character_folders, self.num_classes
         )
         labels_and_images = get_images(
             sampled_character_folders,
             range(self.num_classes),
+            random=self.random,
             nb_samples=self.num_samples_per_class,
             shuffle=False,
         )
@@ -125,7 +126,6 @@ class Datagenerator(Dataset):
         inner_labels = inner_labels[perm_inner, :]
         outer_inputs = outer_inputs[perm_outer, :]
         outer_labels = outer_labels[perm_outer, :]
-
         return {
             "inner_inputs": torch.FloatTensor(inner_inputs),
             "inner_labels": torch.LongTensor(inner_labels),

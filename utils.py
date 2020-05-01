@@ -85,3 +85,20 @@ def make_collate_fn(device):
             "outer_labels": outer_labels.reshape(batch_size, -1).to(device),
         }
     return collate_fn
+
+def print_norm(model):
+    for name, param in model.named_parameters():
+        print(f"name = {name}, norm={torch.norm(param)}")
+
+def norm_sum_data(model):
+    res = 0
+    for name, param in model.named_parameters():
+        res += torch.norm(param.data)
+    return res
+
+def norm_sum_grad(model):
+    res = 0
+    for name, param in model.named_parameters():
+        if param.grad is not None:
+            res += torch.norm(param.grad)
+    return res

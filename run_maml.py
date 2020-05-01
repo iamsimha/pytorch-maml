@@ -37,7 +37,7 @@ def main():
     parser.add_argument("--num-meta-test-samples-per-class", type=int, help="Number of samples per class, during test time")
     parser.add_argument("--num-meta-validation-iterations", type=int, help="Number of epsiodes for validation.")
     parser.add_argument("--num-meta-test-iterations", type=int, help="Number of iterations during meta test time")
-    parser.add_argument("--validation-frequency", type=int, dest="Validation Frequency")
+    parser.add_argument("--validation-frequency", type=int, help="Validation Frequency")
     parser.add_argument("--device", default="cuda")
     args = parser.parse_args()
     model = build_network(args)
