@@ -1,5 +1,5 @@
 python run_maml.py \
-    --data-folder ../HW2/omniglot_resized/ \
+    --data-folder <path to omniglot data> \
     --num-classes 5 \
     --num-meta-test-classes 5 \
     --num-samples-per-class 1 \
