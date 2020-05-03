@@ -78,7 +78,7 @@ def apply_inner_update(
     params = None
     for step in range(num_inner_updates):
         # Do one step of inner gradient update
-        # each gradient update is done with the update parameter
+        # each gradient update is done with the updated parameter
         model.zero_grad()
         logits = model(inps, params)
         loss = loss_fn(logits, labels)
